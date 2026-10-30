@@ -33,4 +33,4 @@ Source: [@Yur1freedom on X](https://x.com/Yur1freedom/status/2115995906197823999
 3. `node build/build.mjs` → offline HTML in `dist/`.
 4. In the browser: **Export** (or `E`) for PNG / PDF / `.pptx`.
 
-Retired 3D direction and Claude session logs are not included.
+
