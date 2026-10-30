@@ -1,8 +1,12 @@
 # Examples
 
-These files are embedded at the top of the repo [`README.md`](../README.md) so they show on the skill page without opening a folder.
+`example-demo.mp4` is a short (~24 s) screen recording of the bento-slide skill in action. It is embedded in the Examples section of the repo [`README.md`](../README.md) so it plays on the skill page without opening a folder.
 
-| File | Theme |
+| File | Contents |
 |---|---|
-| `example-dark.png` | Dark |
-| `example-light.png` | Light |
+| `example-demo.mp4` | Demo video (H.264, 3022×1626, ~24 s) |
+
+
+
+
+
