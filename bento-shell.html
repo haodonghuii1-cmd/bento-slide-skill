@@ -1,0 +1,516 @@
+<!doctype html>
+<!--
+  bento-shell.html — 16:9 single-slide bento shell (SKILL.md §6, §9).
+  Theme hooks:  <html data-theme="light|dark|keynote" data-tone="dark|light">   (data-tone only matters for keynote)
+  Layout hooks: <section class="bento" data-layout="L4|L5|L6|L9|K12|C5|M5|T5|S4">
+  Tile art:     <div class="viz" data-chart="radial-clock|dot-histogram|tick-gauge|dot-grid|dot-area|spark-bars" data-…>
+                drawn by viz/bento-viz.js in Canvas2D at device DPR; colors come from the theme tokens below.
+  Try it:       ?theme=dark · on-screen Light/Dark/Keynote buttons (hide with ?ui=0) · T cycles themes · each switch replays the entrance
+  Export:       Export button in the pill (or E): PNG · PNG zip of all themes · 16:9 PDF · Keynote/PowerPoint .pptx · Print → vector PDF.
+                export/bento-export.js, offline; UI outside .stage is never captured. CLI: node build/export.mjs (SKILL.md §13).
+  Dev: open this file directly (loads fonts/ and viz/ by URL). Ship: `cd build && node build.mjs` → bento-proof.html (one offline file).
+-->
+<html lang="en" data-theme="dark" data-tone="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bento slide — shell</title>
+<meta name="bento-slug" content="bento-slide">   <!-- export filenames: <slug>-dark@2x.png, <slug>-keynote.pptx … -->
+<style>
+/* Inter + Geist Mono (OFL), Latin subset. build.mjs inlines these as data URLs. */
+@font-face { font-family: BentoSans; src: url(fonts/inter.woff) format("woff"); font-weight: 400 700; font-display: block; }
+@font-face { font-family: BentoMono; src: url(fonts/mono.woff) format("woff"); font-weight: 400 500; font-display: block; }
+
+/* ============ 1. Tokens ============ */
+:root {
+  --font: BentoSans, "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: BentoMono, "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --ease-soft: cubic-bezier(.4, 0, .2, 1);
+  --stagger: 90ms;
+  --enter-dur: 900ms;
+
+  /* geometry, in container units of the 16:9 stage (100cqw = slide width; 1cqw ≈ 19.2px at 1920) */
+  --pad: 3.2cqw;
+  --gap: 1.25cqw;
+  --radius: 1.25cqw;
+  --tile-pad: 1.9cqw;
+
+  --fs-eyebrow: .76cqw;
+  --fs-title: 1.65cqw;
+  --fs-hero: 2.5cqw;
+  --fs-body: .9cqw;
+  --fs-meta: .72cqw;
+  --fs-kpi: 1.85cqw;
+  --fs-stat: 5cqw;
+  --fs-stat-label: 1cqw;
+}
+
+/* Dark · near-black data-viz (dataviz-ref.jpg). Marks are near-white; ONE accent, used only on data. */
+[data-theme="dark"] {
+  --page: #050506;
+  --stage: radial-gradient(110% 80% at 50% -10%, #121214 0%, #09090a 60%, #070708 100%);
+  --tile-bg: linear-gradient(180deg, #151517 0%, #111113 100%);
+  --inset-bg: rgba(255, 255, 255, .025);
+  --tile-border: rgba(255, 255, 255, .07);
+  --tile-border-hover: rgba(255, 255, 255, .12);
+  --tile-shadow: 0 .05cqw 0 rgba(255,255,255,.035) inset, 0 1.4cqw 2.8cqw -1.6cqw rgba(0,0,0,.8);
+  --tile-shadow-hover: 0 .05cqw 0 rgba(255,255,255,.05) inset, 0 1.8cqw 3.2cqw -1.6cqw rgba(0,0,0,.85);
+  --ink: #f2f2f3;
+  --muted: #8b8b91;
+  --eyebrow: #8b8b91;
+  --chip-bg: #1c1c1f;
+  --chip-border: rgba(255, 255, 255, .08);
+  --mark: 236, 236, 240;        /* rgb triplet: every dot/tick is rgba(var(--mark), alpha) */
+  --mark-k: 1;                  /* global alpha trim for marks (light ink reads heavier than dark ink) */
+  --accent: #ff5a4d;
+  --accent-rgb: 255, 90, 77;
+  --glow: .2;                   /* peak alpha of the accent glow — the only glow on the slide */
+  --glow-blend: lighter;
+  --ambient: radial-gradient(45% 50% at 62% 30%, rgba(255,255,255,.025), transparent 70%);
+  --stat-fill: linear-gradient(180deg, #ffffff 0%, #b9b9bf 100%);
+  --pointer: 255, 255, 255; --pointer-a: .035; --pointer-blend: screen;
+}
+
+/* Light · the same language on off-white: dark-grey marks, same single accent (deepened for contrast). */
+[data-theme="light"] {
+  --page: #e7e6e3;
+  --stage: radial-gradient(110% 80% at 50% -10%, #f6f5f3 0%, #efeeeb 60%, #ebeae7 100%);
+  --tile-bg: linear-gradient(180deg, #fcfcfb 0%, #f9f9f7 100%);
+  --inset-bg: rgba(20, 20, 24, .025);
+  --tile-border: rgba(20, 20, 24, .07);
+  --tile-border-hover: rgba(20, 20, 24, .11);
+  --tile-shadow: 0 .05cqw 0 rgba(255,255,255,.95) inset, 0 1cqw 2.2cqw -1.3cqw rgba(30, 30, 40, .14), 0 .05cqw .15cqw rgba(30, 30, 40, .05);
+  --tile-shadow-hover: 0 .05cqw 0 rgba(255,255,255,.95) inset, 0 1.4cqw 2.6cqw -1.4cqw rgba(30, 30, 40, .18), 0 .05cqw .15cqw rgba(30, 30, 40, .06);
+  --ink: #161618;
+  --muted: #6c6c71;
+  --eyebrow: #6c6c71;
+  --chip-bg: #ffffff;
+  --chip-border: rgba(20, 20, 24, .08);
+  --mark: 28, 28, 32;
+  --mark-k: .9;
+  --accent: #cf3d2f;
+  --accent-rgb: 207, 61, 47;
+  --glow: .12;
+  --glow-blend: source-over;
+  --ambient: none;
+  --stat-fill: linear-gradient(180deg, #2a2a2e 0%, #121214 100%);
+  --pointer: 255, 255, 255; --pointer-a: .5; --pointer-blend: soft-light;
+}
+
+/* Keynote · Apple summary slide. Art is supplied; the shell stays neutral and dense.
+   (In this proof the charts stand in for supplied art and pick up Keynote's tokens.) */
+[data-theme="keynote"] {
+  --pad: 1.1cqw;
+  --gap: .85cqw;
+  --radius: 1.45cqw;
+  --tile-pad: 1.3cqw;
+  --fs-title: 1.2cqw;
+  --fs-hero: 2.2cqw;
+  --fs-stat: 4.4cqw;
+  --fs-stat-label: 1.1cqw;
+  --tile-shadow: none;
+  --tile-shadow-hover: none;
+  --ambient: none;
+  --mark-k: 1; --glow: .18; --glow-blend: lighter;
+  --pointer: 255, 255, 255; --pointer-a: 0; --pointer-blend: normal;
+}
+[data-theme="keynote"][data-tone="dark"] {
+  --page: #000; --stage: #000; --tile-bg: #161618; --inset-bg: rgba(255,255,255,.04); --tile-border: transparent; --tile-border-hover: transparent;
+  --ink: #f5f5f7; --muted: #a1a1a6; --eyebrow: #2997ff; --chip-bg: #232326; --chip-border: rgba(255,255,255,.08);
+  --mark: 245, 245, 247; --accent: #2997ff; --accent-rgb: 41, 151, 255;
+  --stat-fill: linear-gradient(180deg, #f5f5f7 0%, #8e8e93 100%);
+}
+[data-theme="keynote"][data-tone="light"] {
+  --page: #f5f5f7; --stage: #f5f5f7; --tile-bg: #ffffff; --inset-bg: rgba(0,0,0,.03); --tile-border: transparent; --tile-border-hover: transparent;
+  --ink: #1d1d1f; --muted: #6e6e73; --eyebrow: #0071e3; --chip-bg: #fff; --chip-border: rgba(0,0,0,.08);
+  --mark: 29, 29, 31; --mark-k: .9; --accent: #0071e3; --accent-rgb: 0, 113, 227; --glow: .1; --glow-blend: source-over;
+  --stat-fill: linear-gradient(180deg, #3a3a3c 0%, #1d1d1f 100%);
+}
+
+/* ============ 2. Stage: one 16:9 viewport, letterboxed, never scrolls ============ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--page);
+  display: grid; place-items: center;
+  overflow: hidden;
+  font-family: var(--font);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+.stage {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  width: min(100vw, calc(100dvh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  container-type: inline-size;
+  background: var(--stage);
+  color: var(--ink);
+  overflow: hidden;
+  isolation: isolate;
+}
+.stage::before {
+  content: ""; position: absolute; inset: -10%;
+  background: var(--ambient);
+  z-index: -1; pointer-events: none;
+  animation: ambient 24s var(--ease-soft) infinite alternate;
+}
+@keyframes ambient { to { transform: translate3d(-3%, 2%, 0); } }
+
+/* ============ 3. Grid + layout presets (12 cols × 6 rows) ============ */
+.bento {
+  position: absolute; inset: var(--pad);
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: var(--gap);
+}
+.bento[data-layout="L4"] { grid-template-areas:
+  "a a a a a a a b b b b b" "a a a a a a a b b b b b" "a a a a a a a b b b b b"
+  "c c c c c d d d d d d d" "c c c c c d d d d d d d" "c c c c c d d d d d d d"; }
+.bento[data-layout="L5"] { grid-template-areas:
+  "a a a a a a a b b b b b" "a a a a a a a b b b b b" "a a a a a a a b b b b b"
+  "c c c c d d d d e e e e" "c c c c d d d d e e e e" "c c c c d d d d e e e e"; }
+.bento[data-layout="L6"] { grid-template-areas:
+  "a a a a b b b b c c c c" "a a a a b b b b c c c c" "a a a a b b b b c c c c"
+  "d d d d e e e e f f f f" "d d d d e e e e f f f f" "d d d d e e e e f f f f"; }
+.bento[data-layout="L9"] { grid-template-areas:
+  "b b b a a a a a a c c c" "b b b a a a a a a c c c" "d d d a a a a a a e e e"
+  "d d d a a a a a a e e e" "f f f g g g h h h i i i" "f f f g g g h h h i i i"; }
+.bento[data-layout="K12"] { grid-template-areas:
+  "b b c c a a a a a a d d" "e e c c a a a a a a d d" "e e f f a a a a a a g g"
+  "h h f f a a a a a a g g" "h h i i i j j j k k l l" "h h i i i j j j k k l l"; }
+/* New partitions (SKILL.md §6.2). C5 = edge-ai-bento: tall column hero, panoramic strip, portrait tower, two landscape strips. */
+.bento[data-layout="C5"] { grid-template-areas:
+  "a a a a b b b b b b b b" "a a a a b b b b b b b b" "a a a a c c c d d d d d"
+  "a a a a c c c d d d d d" "a a a a c c c e e e e e" "a a a a c c c e e e e e"; }
+.bento[data-layout="M5"] { grid-template-areas:
+  "a a a a a a a a a a a a" "a a a a a a a a a a a a" "b b b b b c c c c d d d"
+  "b b b b b c c c c d d d" "b b b b b e e e e d d d" "b b b b b e e e e d d d"; }
+.bento[data-layout="T5"] { grid-template-areas:
+  "b b b b a a a a d d d d" "b b b b a a a a d d d d" "c c c c a a a a d d d d"
+  "c c c c a a a a d d d d" "c c c c a a a a e e e e" "c c c c a a a a e e e e"; }
+.bento[data-layout="S4"] { grid-template-areas:
+  "a a a a b b b b b b b b" "a a a a b b b b b b b b" "a a a a c c c c c c c c"
+  "a a a a c c c c c c c c" "a a a a d d d d d d d d" "a a a a d d d d d d d d"; }
+.tile:nth-child(1)  { grid-area: a; } .tile:nth-child(2)  { grid-area: b; }
+.tile:nth-child(3)  { grid-area: c; } .tile:nth-child(4)  { grid-area: d; }
+.tile:nth-child(5)  { grid-area: e; } .tile:nth-child(6)  { grid-area: f; }
+.tile:nth-child(7)  { grid-area: g; } .tile:nth-child(8)  { grid-area: h; }
+.tile:nth-child(9)  { grid-area: i; } .tile:nth-child(10) { grid-area: j; }
+.tile:nth-child(11) { grid-area: k; } .tile:nth-child(12) { grid-area: l; }
+.tile[hidden],
+.bento[data-layout="L4"] > .tile:nth-child(n+5),
+.bento[data-layout="L5"] > .tile:nth-child(n+6),
+.bento[data-layout="C5"] > .tile:nth-child(n+6),
+.bento[data-layout="M5"] > .tile:nth-child(n+6),
+.bento[data-layout="T5"] > .tile:nth-child(n+6),
+.bento[data-layout="S4"] > .tile:nth-child(n+5),
+.bento[data-layout="L6"] > .tile:nth-child(n+7),
+.bento[data-layout="L9"] > .tile:nth-child(n+10) { display: none; }
+
+/* ============ 4. Tile anatomy ============ */
+.tile {
+  --mx: 50%; --my: 50%;
+  position: relative;
+  border-radius: var(--radius);
+  background: var(--tile-bg);
+  box-shadow: var(--tile-shadow);
+  outline: 1px solid var(--tile-border);
+  outline-offset: -1px;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex; flex-direction: column;
+  padding: var(--tile-pad);
+  min-width: 0; min-height: 0;
+  animation: tile-in var(--enter-dur) var(--ease) both;
+  animation-delay: calc(var(--i, 0) * var(--stagger) + 120ms);
+  transition: translate .8s var(--ease-soft), box-shadow .9s var(--ease-soft), outline-color .9s var(--ease-soft);
+}
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(.9cqw); }
+  to   { opacity: 1; transform: none; }
+}
+/* Natural hover: a hair of lift, a slightly firmer edge, and a wide, dim, damped pool of light (no hotspot). */
+.tile:hover { translate: 0 -.1cqw; box-shadow: var(--tile-shadow-hover); outline-color: var(--tile-border-hover); }
+.tile::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background: radial-gradient(36cqw circle at var(--mx) var(--my),
+    rgba(var(--pointer), var(--pointer-a)) 0%, rgba(var(--pointer), calc(var(--pointer-a) * .8)) 12%, rgba(var(--pointer), calc(var(--pointer-a) * .5)) 25%,
+    rgba(var(--pointer), calc(var(--pointer-a) * .22)) 40%, rgba(var(--pointer), calc(var(--pointer-a) * .07)) 56%, rgba(var(--pointer), 0) 80%);
+  mix-blend-mode: var(--pointer-blend);
+  opacity: 0; transition: opacity 1.4s var(--ease-soft);
+}
+.tile.is-lit::after { opacity: 1; transition-duration: 1s; }
+
+/* Copy */
+.eyebrow { margin: 0 0 .4cqw; font-size: var(--fs-eyebrow); font-weight: 500; letter-spacing: .01em; color: var(--eyebrow); }
+.title { margin: 0; font-size: var(--fs-title); line-height: 1.1; font-weight: 600; letter-spacing: -.022em; text-wrap: balance; }
+.tile--hero .title { font-size: var(--fs-hero); line-height: 1.04; letter-spacing: -.032em; }
+.body { margin: .45cqw 0 0; font-size: var(--fs-body); line-height: 1.4; color: var(--muted); text-wrap: pretty; max-width: 22cqw; }
+.mono { font-family: var(--mono); font-size: var(--fs-meta); letter-spacing: .01em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; letter-spacing: -.035em; font-weight: 600; }
+.num small { font-size: .5em; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-left: .06em; }
+.is-accent { color: var(--accent) !important; }
+
+/* Tile head: copy left, one KPI right */
+.tile-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1.2cqw; position: relative; z-index: 2; }
+.kpi-side { text-align: right; flex: none; }
+.kpi-side .num { margin: -.15cqw 0 .25cqw; font-size: var(--fs-kpi); line-height: 1; }
+.kpi-side .mono { margin: 0; }
+
+/* Data-viz art layer (Canvas2D from viz/bento-viz.js). The canvas backing store = the box's exact device pixels. */
+.viz { position: relative; min-width: 0; min-height: 0; }
+.viz__cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.viz--fill { flex: 1; margin-top: 1.1cqw; }
+
+/* Hero: copy column left, radial clock right */
+.tile--hero { padding: var(--tile-pad); }
+.hero-copy { position: relative; z-index: 2; display: flex; flex-direction: column; height: 100%; width: 47%; }
+.meta { display: flex; align-items: center; gap: .75cqw; margin-bottom: 1.35cqw; }
+.live { display: inline-flex; align-items: center; gap: .42cqw; padding: .3cqw .62cqw .3cqw .5cqw; border-radius: 999px;
+  font-size: var(--fs-meta); font-weight: 600; background: var(--chip-bg); outline: 1px solid var(--chip-border); outline-offset: -1px; }
+.live i { position: relative; width: .36cqw; height: .36cqw; border-radius: 50%; background: var(--ink); }
+.live i::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--ink); animation: live 2.8s var(--ease-soft) infinite; }
+@keyframes live { 0% { transform: scale(1); opacity: .35; } 70%, 100% { transform: scale(2.8); opacity: 0; } }
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: .4cqw 1.1cqw; margin: 1.15cqw 0 0; padding: 0; font-size: var(--fs-meta); color: var(--muted); }
+.legend li { display: inline-flex; align-items: center; gap: .38cqw; }
+.legend li::before { content: ""; width: .36cqw; height: .36cqw; border-radius: 50%; background: rgba(var(--mark), var(--dot-a, .95)); }
+.legend b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.legend .l-dim { --dot-a: .5; } .legend .l-faint { --dot-a: .2; }
+.legend .l-acc::before { background: var(--accent); }
+.legend .l-acc b { color: var(--accent); }
+.kpis { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: .7cqw; }
+.kpi { position: relative; padding: .85cqw .95cqw .8cqw; border-radius: .75cqw; background: var(--inset-bg); outline: 1px solid var(--chip-border); outline-offset: -1px; }
+.kpi__label { margin: 0; font-size: var(--fs-meta); color: var(--muted); }
+.kpi__num { margin: .35cqw 0 .3cqw; font-size: 1.7cqw; line-height: 1; }
+.kpi__delta { margin: 0; font-size: var(--fs-meta); color: var(--muted); white-space: nowrap; }
+.kpi__delta b { color: var(--ink); font-weight: 600; }
+.kpi .viz { position: absolute; right: .95cqw; top: 1.95cqw; width: 3.6cqw; height: 1.75cqw; }
+.viz--clock { position: absolute; top: .4cqw; bottom: .4cqw; right: 2.2cqw; aspect-ratio: 1; }
+.viz-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; z-index: 1; }
+.viz-center .num { margin: 0; font-size: 2.1cqw; line-height: 1; }
+.viz-center .mono { margin: .5cqw 0 0; min-height: 1.2em; font-family: var(--font); font-size: .74cqw; }
+.caption { position: absolute; bottom: var(--tile-pad); right: var(--tile-pad); margin: 0; z-index: 2; }
+
+/* Stat tile: the number sits at the gauge's center */
+.tile--stat { padding: 0; }
+.tile--stat .viz { position: absolute; inset: 0; }
+.stat { position: absolute; left: 0; right: 0; top: 58%; translate: 0 -50%; text-align: center; z-index: 2; pointer-events: none; }
+.stat__pre, .stat__label { margin: 0; font-size: var(--fs-stat-label); font-weight: 600; color: var(--ink); }
+.stat__num {
+  margin: .05cqw 0 .1cqw; font-size: var(--fs-stat); line-height: 1; font-weight: 600; letter-spacing: -.05em;
+  background: var(--stat-fill); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.stat__foot { position: absolute; left: 0; right: 0; bottom: var(--tile-pad); margin: 0; text-align: center; z-index: 2; }
+.tile--stat .eyebrow { position: absolute; top: var(--tile-pad); left: var(--tile-pad); z-index: 2; }
+
+.legend--foot { margin-top: .9cqw; }
+
+/* On-screen theme switch (presenter aid; hidden in print and with ?ui=0) */
+.theme-switch {
+  position: fixed; left: 50%; bottom: 10px; translate: -50% 0; z-index: 20;
+  display: flex; gap: 2px; padding: 3px; border-radius: 999px;
+  background: rgba(28, 28, 32, .62); backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.1) inset, 0 6px 20px -8px rgba(0,0,0,.45);
+  font: 500 12px/1 var(--font); opacity: .55; transition: opacity .3s var(--ease-soft);
+}
+.theme-switch:hover, .theme-switch:focus-within { opacity: 1; }
+.theme-switch button {
+  appearance: none; border: 0; margin: 0; padding: 7px 13px; border-radius: 999px; cursor: pointer;
+  font: inherit; color: rgba(255,255,255,.75); background: transparent;
+}
+.theme-switch button:hover { color: #fff; }
+.theme-switch button[aria-pressed="true"] { color: #141416; background: rgba(255,255,255,.92); }
+.theme-switch button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.no-ui .theme-switch { display: none; }
+
+/* ============ 5. Reduced motion: everything lands in its final state ============ */
+@media (prefers-reduced-motion: reduce) {
+  .tile, .stage::before, .live i::after { animation: none !important; }
+  .tile { transition: none !important; }
+  .tile::after { display: none; }
+  .tile:hover { translate: none; }
+}
+
+/* ============ 6. Export ============ */
+@page { size: 1920px 1080px; margin: 0; }
+@media print {
+  *, *::before, *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }   /* keep tile fills + gradients */
+  body { background: none; display: block; }
+  .theme-switch { display: none; }
+  .stage { width: 1920px; }
+  .tile, .stage::before { animation: none !important; }
+}
+</style>
+</head>
+<body>
+<main class="stage" aria-label="Relay — summary slide">
+  <section class="bento" data-layout="L5">
+
+    <!-- a · hero · radial dot clock (1 dot = 2,000 messages) -->
+    <article class="tile tile--hero" style="--i:0">
+      <div class="hero-copy">
+        <div class="meta"><span class="live"><i></i>Live</span><time class="mono" datetime="2026-10-27T14:20+01:00">Tue 27 Oct · 14:20 CET</time></div>
+        <h2 class="title">One API for every channel</h2>
+        <p class="body">Push, email and SMS through one endpoint, watched live.</p>
+        <ul class="legend">
+          <li>Delivered</li>
+          <li class="l-faint">Forecast</li>
+          <li class="l-acc">Auto-retried</li>
+        </ul>
+        <div class="kpis">
+          <div class="kpi">
+            <p class="kpi__label">Delivered today</p>
+            <p class="kpi__num num">1.09M</p>
+            <p class="kpi__delta"><b>+6.8%</b> vs last Tue</p>
+            <div class="viz" data-chart="spark-bars" data-values="3,3,3,3,4,4,5,7,9,12,14,15" aria-hidden="true"></div>
+          </div>
+          <div class="kpi">
+            <p class="kpi__label">Auto-retried</p>
+            <p class="kpi__num num">94k</p>
+            <p class="kpi__delta"><b class="is-accent">SMS carrier</b> at 02:14</p>
+            <div class="viz" data-chart="spark-bars" data-values="2,2,2,9,3,2,2,2,2,2,2,2" data-accent-index="3" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption mono">1 dot = 2,000 messages</p>
+      <div class="viz viz--clock" data-chart="radial-clock"
+           data-hourly="42,30,24,20,19,24,38,62,92,118,132,140,146,150,148,142,136,128,122,116,104,88,70,54" data-scale="1000"
+           data-unit="2000" data-now="14:20" data-anomaly="02:14" data-anomaly-dots="6,12,14,10,5" data-seed="7"
+           role="img" aria-label="Messages per 10 minutes today: 1.09 million delivered by 14:20, 99.98% success, with 94,000 SMS auto-retried after a carrier failure at 02:14.">
+        <div class="viz-center"><p class="num">99.98<small>%</small></p><p class="mono" data-readout>delivered today</p></div>
+      </div>
+    </article>
+
+    <!-- b · latency · dot histogram -->
+    <article class="tile" style="--i:1">
+      <header class="tile-head">
+        <div>
+          <p class="eyebrow">Latency</p>
+          <h3 class="title">Fast on every channel</h3>
+          <p class="body">Median 92 ms from API call to device.</p>
+        </div>
+        <div class="kpi-side"><p class="num">180<small>ms</small></p><p class="mono">p95 · last 24 h</p></div>
+      </header>
+      <div class="viz viz--fill" data-chart="dot-histogram" data-median="92" data-p95="180" data-max="400"
+           role="img" aria-label="Delivery latency distribution over the last 24 hours: median 92 ms, p95 180 ms, p99 238 ms."></div>
+    </article>
+
+    <!-- c · stat · tick gauge -->
+    <article class="tile tile--stat" style="--i:2">
+      <p class="eyebrow">Throughput</p>
+      <div class="viz" data-chart="tick-gauge" data-min="0" data-max="4" data-value="3" data-unit="×" data-cy=".58" aria-hidden="true"></div>
+      <div class="stat">
+        <p class="stat__pre">Up to</p>
+        <p class="stat__num">3×</p>
+        <p class="stat__label">faster delivery</p>
+      </div>
+      <p class="stat__foot mono">vs. one SDK per channel</p>
+    </article>
+
+    <!-- d · reliability · dot grid (90 days × 24 h) -->
+    <article class="tile" style="--i:3">
+      <header class="tile-head">
+        <div>
+          <p class="eyebrow">Reliability</p>
+          <h3 class="title">Always on</h3>
+          <p class="body">Multi-region failover, no lost messages.</p>
+        </div>
+        <div class="kpi-side"><p class="num">99.99<small>%</small></p><p class="mono">uptime · 90 days</p></div>
+      </header>
+      <div class="viz viz--fill" data-chart="dot-grid" data-days="90" data-today="2026-10-27"
+           data-hourly="42,30,24,20,19,24,38,62,92,118,132,140,146,150,148,142,136,128,122,116,104,88,70,54"
+           data-incident="61,2" data-incident-label="Sep 28 · 02:51 · 41 s failover" data-incident-uptime="99.95%"
+           data-labels="90 days ago|Today"
+           role="img" aria-label="Hourly availability for the last 90 days: 100% except a 41-second regional failover on September 28 at 02:51."></div>
+    </article>
+
+    <!-- e · insights · dot area -->
+    <article class="tile" style="--i:4">
+      <header class="tile-head">
+        <div>
+          <p class="eyebrow">Insights</p>
+          <h3 class="title">See every message</h3>
+          <p class="body">Delivery, opens and clicks in one live view.</p>
+        </div>
+        <div class="kpi-side"><p class="num">41<small>%</small></p><p class="mono">open rate · 7 days</p></div>
+      </header>
+      <div class="viz viz--fill" data-chart="dot-area"
+           data-hourly="42,30,24,20,19,24,38,62,92,118,132,140,146,150,148,142,136,128,122,116,104,88,70,54"
+           data-day-factor="1,1.04,1.02,1.08,.98,.62,.55" data-focus="3,4"
+           role="img" aria-label="Messages delivered, opened and clicked per two hours over the last 7 days; opens average 41% and peak at 46% on weekday mornings."></div>
+      <ul class="legend legend--foot">
+        <li class="l-faint">Delivered</li>
+        <li class="l-dim">Opened</li>
+        <li>Clicked</li>
+      </ul>
+    </article>
+
+  </section>
+</main>
+
+<nav class="theme-switch" aria-label="Theme">
+  <button type="button" data-set-theme="light">Light</button>
+  <button type="button" data-set-theme="dark">Dark</button>
+  <button type="button" data-set-theme="keynote">Keynote</button>
+</nav>
+
+<script>
+/* Theme hooks, theme switch, and the damped pointer light. No dependencies. */
+(() => {
+  const root = document.documentElement;
+  const q = new URLSearchParams(location.search);
+  if (q.get('theme')) root.dataset.theme = q.get('theme');
+  if (q.get('tone')) root.dataset.tone = q.get('tone');
+  if (q.get('layout')) document.querySelector('.bento').dataset.layout = q.get('layout');
+  if (q.get('ui') === '0') root.classList.add('no-ui');
+
+  const themes = ['light', 'dark', 'keynote'];
+  const buttons = [...document.querySelectorAll('[data-set-theme]')];
+  const sync = () => buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.setTheme === root.dataset.theme)));
+  buttons.forEach((b) => b.addEventListener('click', () => { root.dataset.theme = b.dataset.setTheme; }));
+  const rm = matchMedia('(prefers-reduced-motion: reduce)');
+  // A theme change replays the entrance like a fresh load: tiles rise in again and every chart redraws its reveal.
+  const replay = () => {
+    if (rm.matches) return;
+    document.querySelectorAll('.tile').forEach((t) => t.getAnimations().forEach((a) => { if (a.animationName === 'tile-in') { a.cancel(); a.play(); } }));
+    window.bentoViz?.replay();
+  };
+  // bento-export flips themes for a frame-free round trip while capturing; data-exporting tells us not to replay.
+  new MutationObserver((ms) => { sync(); if (!('exporting' in root.dataset) && ms.some((m) => m.oldValue !== root.dataset.theme)) replay(); })
+    .observe(root, { attributes: true, attributeFilter: ['data-theme'], attributeOldValue: true });
+  sync();
+  addEventListener('keydown', (e) => {
+    if (e.key === 't' || e.key === 'T') root.dataset.theme = themes[(themes.indexOf(root.dataset.theme) + 1) % themes.length];
+  });
+
+  // Pointer light: damped follow (τ ≈ 220 ms), starts where the pointer enters, fades in 1 s / out 1.4 s.
+  document.querySelectorAll('.tile').forEach((t) => {
+    const cur = { x: 0, y: 0 }, tgt = { x: 0, y: 0 };
+    let raf = 0, last = 0, inside = false;
+    const step = (now) => {
+      const dt = Math.min(0.1, (now - last) / 1000 || 0.016); last = now;
+      const f = 1 - Math.exp(-dt / 0.22);
+      cur.x += (tgt.x - cur.x) * f; cur.y += (tgt.y - cur.y) * f;
+      t.style.setProperty('--mx', `${cur.x.toFixed(1)}px`);
+      t.style.setProperty('--my', `${cur.y.toFixed(1)}px`);
+      raf = (inside || Math.abs(tgt.x - cur.x) + Math.abs(tgt.y - cur.y) > 0.5) ? requestAnimationFrame(step) : 0;
+    };
+    const at = (e) => { const r = t.getBoundingClientRect(); tgt.x = e.clientX - r.left; tgt.y = e.clientY - r.top; };
+    t.addEventListener('pointerenter', (e) => {
+      if (rm.matches) return;
+      at(e); cur.x = tgt.x; cur.y = tgt.y; inside = true; t.classList.add('is-lit');
+      if (!raf) { last = performance.now(); raf = requestAnimationFrame(step); }
+    });
+    t.addEventListener('pointermove', (e) => { if (inside) at(e); });
+    t.addEventListener('pointerleave', () => { inside = false; t.classList.remove('is-lit'); });
+  });
+})();
+</script>
+<script src="viz/bento-viz.js"></script>
+<script src="export/bento-export.js"></script>
+</body>
+</html>
