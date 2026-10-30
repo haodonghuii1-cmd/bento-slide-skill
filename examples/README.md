@@ -1,8 +1,8 @@
 # Examples
 
-Example renders of the bento-slide skill (from [@Yur1freedom](https://x.com/Yur1freedom/status/2115995906197823999)):
+These files are embedded at the top of the repo [`README.md`](../README.md) so they show on the skill page without opening a folder.
 
 | File | Theme |
 |---|---|
-| `example-dark.jpg` | Dark |
-| `example-light.jpg` | Light |
+| `example-dark.png` | Dark |
+| `example-light.png` | Light |
