@@ -17,9 +17,7 @@ Built for launch recaps, “what’s new” slides, capability overviews, and on
 
 Demo of the skill in action (~24 s):
 
-<video src="https://github.com/haodonghuii1-cmd/bento-slide-skill/raw/main/examples/example-demo.mp4" controls muted playsinline width="100%"></video>
-
-If the player doesn't load, open [`examples/example-demo.mp4`](examples/example-demo.mp4) — GitHub plays it in the browser.
+https://github.com/user-attachments/assets/6e2aca9d-f170-4b87-b98f-a6e18c7d6419
 
 Source: [@Yur1freedom on X](https://x.com/Yur1freedom/status/2115995906197823999)
 
