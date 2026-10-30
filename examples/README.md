@@ -5,8 +5,3 @@
 | File | Contents |
 |---|---|
 | `example-demo.mp4` | Demo video (H.264, 3022×1626, ~24 s) |
-
-
-
-
-
