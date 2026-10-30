@@ -15,11 +15,11 @@ Built for launch recaps, “what’s new” slides, capability overviews, and on
 
 ## Examples
 
-Dark and Light themes (inline — no click-through needed):
+Demo of the skill in action (~24 s):
 
-![Dark theme example](examples/example-dark.png)
+<video src="https://github.com/haodonghuii1-cmd/bento-slide-skill/raw/main/examples/example-demo.mp4" controls muted playsinline width="100%"></video>
 
-![Light theme example](examples/example-light.png)
+If the player doesn't load, open [`examples/example-demo.mp4`](examples/example-demo.mp4) — GitHub plays it in the browser.
 
 Source: [@Yur1freedom on X](https://x.com/Yur1freedom/status/2115995906197823999)
 
@@ -37,7 +37,7 @@ Source: [@Yur1freedom on X](https://x.com/Yur1freedom/status/2115995906197823999
 | `dist/bento-slide.html` | Built offline proof |
 | `bento-proof.html` | Reference slide |
 | `qa/*.png` | Quality-floor captures (study `*-zoom-*.png`) |
-| `examples/` | Example renders shown above |
+| `examples/` | Demo video shown above |
 
 ## Quick start
 
