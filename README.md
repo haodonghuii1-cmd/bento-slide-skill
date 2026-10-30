@@ -23,3 +23,15 @@ Drop-in package for the bento-slide playbook (name in SKILL.md frontmatter: `ben
 4. In the browser: **Export** (or `E`) for PNG / PDF / `.pptx`.
 
 Retired 3D direction and Claude session logs are not included.
+
+
+## Examples
+
+Example renders ([X post](https://x.com/Yur1freedom/status/2115995906197823999)):
+
+- [Dark](examples/example-dark.jpg)
+- [Light](examples/example-light.jpg)
+
+
+
+
